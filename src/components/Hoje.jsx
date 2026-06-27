@@ -78,16 +78,16 @@ export default function Hoje({ planejamento, isFerias, mostrarNotificacao, marca
   }
 
   function handleIniciarEstudo() {
-    mostrarNotificacao('🎯 Modo foco ativado! Bons estudos! 🌴');
+    mostrarNotificacao('Modo foco ativado! Bons estudos!');
   }
 
   function handleReorganizar() {
     if (reorganizar) {
       const resultado = reorganizar(hoje);
       if (resultado !== planejamento) {
-        mostrarNotificacao('🔄 Plano reorganizado automaticamente!');
+        mostrarNotificacao('Plano reorganizado!');
       } else {
-        mostrarNotificacao('✅ Plano já está organizado!');
+        mostrarNotificacao('Plano já está organizado.');
       }
     }
   }
@@ -110,10 +110,10 @@ export default function Hoje({ planejamento, isFerias, mostrarNotificacao, marca
           </button>
           {totalPendentesHoje > 0 ? (
             <span style={{ fontSize: 12, color: '#7FA8C4', alignSelf: 'center' }}>
-              📚 {totalPendentesHoje} item{totalPendentesHoje > 1 ? 's' : ''} pendente{totalPendentesHoje > 1 ? 's' : ''} hoje
+              {totalPendentesHoje} item{totalPendentesHoje > 1 ? 's' : ''} pendente{totalPendentesHoje > 1 ? 's' : ''} hoje
             </span>
           ) : (
-            <span style={{ fontSize: 12, color: '#00D4AA', alignSelf: 'center' }}>✅ Tudo concluído hoje! 🎉</span>
+            <span style={{ fontSize: 12, color: '#00D4AA', alignSelf: 'center' }}>Tudo concluído hoje!</span>
           )}
         </div>
       </div>
@@ -121,7 +121,7 @@ export default function Hoje({ planejamento, isFerias, mostrarNotificacao, marca
       {isFerias && (
         <div className="ferias-progresso" style={{ marginBottom: 20 }}>
           <Icon name="Palmtree" size={24} color="#A29BFE" />
-          <span className="fp-label">🏖️ Modo Férias</span>
+          <span className="fp-label">Modo Férias</span>
           <span className="fp-num">{planejamento?.nome || 'Férias'}</span>
           <div className="ferias-barra">
             <div className="fb-preenchida" style={{ width: `${planejamento?.stats?.porcentagemConcluido || 0}%` }} />
@@ -148,7 +148,7 @@ export default function Hoje({ planejamento, isFerias, mostrarNotificacao, marca
               <div className="card-header">
                 <span className="card-tag card-tag-success"><Icon name="CheckCircle" size={14} /> Nenhuma aula pendente hoje</span>
               </div>
-              <h2 className="card-titulo">✅ Dia livre!</h2>
+              <h2 className="card-titulo">Dia livre!</h2>
               <p className="card-desc">Aproveite para revisar ou descansar.</p>
             </div>
           )}
@@ -156,7 +156,7 @@ export default function Hoje({ planejamento, isFerias, mostrarNotificacao, marca
           <div className="card card-manha" style={{ borderLeft: `4px solid ${manha.tipo === 'livre' ? '#00D4AA' : '#FFB347'}` }}>
             <div className="card-header">
               <span className="card-tag" style={{ background: isFerias ? '#A29BFE' : '#00B4FF' }}>
-                <Icon name="Sun" size={14} /> {isFerias ? '🏖️ Sua manhã' : '☀️ Sua manhã'}
+                <Icon name="Sun" size={14} /> {isFerias ? 'Sua manhã' : 'Sua manhã'}
               </span>
             </div>
             <p className="card-conteudo">{manha.conteudo}</p>
@@ -182,7 +182,7 @@ export default function Hoje({ planejamento, isFerias, mostrarNotificacao, marca
           <div className="card card-prazos">
             <h3 className="lateral-titulo"><Icon name="Clock" size={16} /> Próximos prazos</h3>
             {eventosNaoConcluidos.length === 0 ? (
-              <p className="vazio">Nenhum prazo pendente! 🎉</p>
+              <p className="vazio">Nenhum prazo pendente!</p>
             ) : (
               <ul className="lista-prazos">
                 {eventosNaoConcluidos.filter(e => e.data >= hoje).sort((a, b) => a.data.localeCompare(b.data)).slice(0, 3).map(ev => {
