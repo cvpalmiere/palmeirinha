@@ -1,7 +1,3 @@
-// ============================================================
-// PALMEIRINHA – Gerenciamento de Planejamentos
-// ============================================================
-
 import { useState, useEffect, useCallback } from 'react';
 import { useLocalStorage } from './useLocalStorage.js';
 import { PLANEJAMENTO_VAZIO } from './dados.js';
@@ -27,10 +23,10 @@ export function usePlanejamento() {
         throw new Error('Nenhuma atividade encontrada no prompt.');
       }
       setPlanejamento(novo);
-      mostrarNotificacao('✅ Planejamento criado com sucesso!');
+      mostrarNotificacao('Planejamento criado com sucesso!');
       return novo;
     } catch (error) {
-      mostrarNotificacao(`❌ Erro ao criar planejamento: ${error.message}`);
+      mostrarNotificacao(`Erro: ${error.message}`);
       throw error;
     } finally {
       setLoading(false);
@@ -39,7 +35,7 @@ export function usePlanejamento() {
 
   const arquivarAtual = useCallback(() => {
     if (!planejamento) {
-      mostrarNotificacao('❌ Nenhum planejamento ativo para arquivar.');
+      mostrarNotificacao('Nenhum planejamento ativo para arquivar.');
       return null;
     }
 
@@ -62,17 +58,17 @@ export function usePlanejamento() {
 
     setHistorico(prev => [itemHistorico, ...prev]);
     setPlanejamento(null);
-    mostrarNotificacao(`📦 "${itemHistorico.nome}" arquivado com sucesso!`);
+    mostrarNotificacao(`"${itemHistorico.nome}" arquivado com sucesso!`);
     return itemHistorico;
   }, [planejamento, setHistorico, setPlanejamento, mostrarNotificacao]);
 
   const resetarAtual = useCallback(() => {
     if (!planejamento) {
-      mostrarNotificacao('❌ Nenhum planejamento ativo para resetar.');
+      mostrarNotificacao('Nenhum planejamento ativo para resetar.');
       return;
     }
     setPlanejamento(null);
-    mostrarNotificacao('🔄 Planejamento resetado com sucesso!');
+    mostrarNotificacao('Planejamento resetado com sucesso!');
   }, [planejamento, setPlanejamento, mostrarNotificacao]);
 
   const concluirEvento = useCallback((eventoId) => {
@@ -86,8 +82,8 @@ export function usePlanejamento() {
       return novo;
     });
 
-    mostrarNotificacao('✅ Evento concluído com sucesso!');
-
+    mostrarNotificacao('Evento concluído!');
+    
     setTimeout(() => {
       const hoje = new Date().toISOString().split('T')[0];
       reorganizar(hoje);
@@ -105,8 +101,8 @@ export function usePlanejamento() {
       return novo;
     });
 
-    mostrarNotificacao('🔄 Evento reaberto!');
-
+    mostrarNotificacao('Evento reaberto!');
+    
     setTimeout(() => {
       const hoje = new Date().toISOString().split('T')[0];
       reorganizar(hoje);
@@ -124,7 +120,7 @@ export function usePlanejamento() {
       };
       return novo;
     });
-
+    
     if (concluido) {
       setTimeout(() => {
         const hoje = new Date().toISOString().split('T')[0];
@@ -161,12 +157,12 @@ export function usePlanejamento() {
 
   const removerDoHistorico = useCallback((id) => {
     setHistorico(prev => prev.filter(item => item.id !== id));
-    mostrarNotificacao('🗑️ Item removido do histórico.');
+    mostrarNotificacao('Item removido do histórico.');
   }, [setHistorico, mostrarNotificacao]);
 
   const reorganizar = useCallback((dataHoje) => {
     if (!planejamento) {
-      mostrarNotificacao('❌ Nenhum planejamento para reorganizar.');
+      mostrarNotificacao('Nenhum planejamento para reorganizar.');
       return null;
     }
 
@@ -175,16 +171,16 @@ export function usePlanejamento() {
 
     if (novo !== planejamento) {
       setPlanejamento(novo);
-      mostrarNotificacao('🔄 Plano reorganizado automaticamente!');
+      mostrarNotificacao('Plano reorganizado!');
       return novo;
     }
-
+    
     return planejamento;
   }, [planejamento, setPlanejamento, mostrarNotificacao]);
 
   const exportarDados = useCallback(() => {
     if (!planejamento) {
-      mostrarNotificacao('❌ Nenhum planejamento para exportar.');
+      mostrarNotificacao('Nenhum planejamento para exportar.');
       return null;
     }
 
@@ -203,7 +199,7 @@ export function usePlanejamento() {
     a.click();
     URL.revokeObjectURL(url);
 
-    mostrarNotificacao('📤 Dados exportados com sucesso!');
+    mostrarNotificacao('Dados exportados com sucesso!');
     return dados;
   }, [planejamento, historico, mostrarNotificacao]);
 
@@ -217,10 +213,10 @@ export function usePlanejamento() {
       if (dados.historico) {
         setHistorico(dados.historico);
       }
-      mostrarNotificacao('📥 Dados importados com sucesso!');
+      mostrarNotificacao('Dados importados com sucesso!');
       return dados;
     } catch (error) {
-      mostrarNotificacao(`❌ Erro ao importar: ${error.message}`);
+      mostrarNotificacao(`Erro ao importar: ${error.message}`);
       throw error;
     }
   }, [setPlanejamento, setHistorico, mostrarNotificacao]);
