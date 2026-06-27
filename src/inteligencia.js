@@ -1,7 +1,3 @@
-// ============================================================
-// PALMEIRINHA – Inteligência de Reprogramação Automática
-// ============================================================
-
 function formatDateISO(date) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -15,6 +11,18 @@ function parseDate(str) {
   return new Date(y, m - 1, d);
 }
 
+function getDiasUteis(inicio, fim, diasUteis) {
+  const dias = [];
+  const cur = new Date(inicio);
+  while (cur <= fim) {
+    if (diasUteis.includes(cur.getDay())) {
+      dias.push(new Date(cur));
+    }
+    cur.setDate(cur.getDate() + 1);
+  }
+  return dias;
+}
+
 function calcularStats(aulas, eventos) {
   const totalAulas = aulas.length;
   const concluidas = aulas.filter(a => a.concluido).length;
@@ -22,7 +30,6 @@ function calcularStats(aulas, eventos) {
   const totalEventos = eventos.length;
   const totalItems = totalAulas + totalEventos;
   const concluidos = concluidas + eventosConcluidos;
-
   return {
     totalAulas,
     aulasAssistidas: concluidas,
@@ -32,40 +39,7 @@ function calcularStats(aulas, eventos) {
   };
 }
 
-function puxarProximoItem(planejamento, dataHoje) {
-  const hoje = new Date(dataHoje);
-  hoje.setHours(0, 0, 0, 0);
-  const hojeStr = formatDateISO(hoje);
-
-  const aulas = planejamento.aulas || [];
-
-  const proximo = aulas
-    .filter(a => !a.concluido)
-    .sort((a, b) => {
-      const dateA = parseDate(a.data);
-      const dateB = parseDate(b.data);
-      if (!dateA) return 1;
-      if (!dateB) return -1;
-      return dateA - dateB;
-    })[0];
-
-  if (!proximo) return planejamento;
-
-  const novasAulas = aulas.map(a => {
-    if (a.id === proximo.id) {
-      return { ...a, data: hojeStr };
-    }
-    return a;
-  });
-
-  return {
-    ...planejamento,
-    aulas: novasAulas,
-    ultimaReorganizacao: new Date().toISOString(),
-  };
-}
-
-export function reorganizarPlanejamento(planejamento, dataHoje) {
+function reorganizarPlanejamento(planejamento, dataHoje) {
   if (!planejamento || !planejamento.aulas) return planejamento;
 
   const hoje = new Date(dataHoje);
@@ -82,7 +56,6 @@ export function reorganizarPlanejamento(planejamento, dataHoje) {
   const todosPendentes = [...aulasPendentes, ...eventosPendentes];
 
   if (todosPendentes.length === 0) {
-    console.log('✅ Todos os itens já foram concluídos!');
     return planejamento;
   }
 
@@ -107,29 +80,22 @@ export function reorganizarPlanejamento(planejamento, dataHoje) {
     return dataItem > hoje;
   });
 
-  console.log(`📊 Reorganização: ${atrasados.length} atrasados, ${hojeItems.length} hoje, ${futuros.length} futuros`);
-
   if (atrasados.length === 0 && hojeItems.length > 0) {
-    console.log('✅ Plano OK - tem itens para hoje');
     return planejamento;
   }
 
   const ordenados = [...atrasados, ...hojeItems, ...futuros];
 
-  const diasDisponiveis = [];
-  const cur = new Date(hoje);
+  const inicioRedistribuicao = new Date(hoje);
+  inicioRedistribuicao.setDate(inicioRedistribuicao.getDate() + 1);
+  const inicioStr = formatDateISO(inicioRedistribuicao);
+
   const fim = planejamento.periodo?.fim ? parseDate(planejamento.periodo.fim) : new Date(hoje);
   fim.setMonth(fim.getMonth() + 2);
 
-  while (cur <= fim) {
-    if (diasUteis.includes(cur.getDay())) {
-      diasDisponiveis.push(new Date(cur));
-    }
-    cur.setDate(cur.getDate() + 1);
-  }
+  const diasDisponiveis = getDiasUteis(inicioRedistribuicao, fim, diasUteis);
 
   if (diasDisponiveis.length === 0) {
-    console.warn('⚠️ Nenhum dia disponível para reorganizar');
     return planejamento;
   }
 
@@ -150,8 +116,6 @@ export function reorganizarPlanejamento(planejamento, dataHoje) {
       itemIndex++;
     }
   }
-
-  console.log(`📊 Distribuição: ${totalItens} itens em ${totalDias} dias (${itensPorDia} por dia)`);
 
   const novasAulas = aulas.map(aula => {
     if (aula.concluido) return aula;
@@ -182,13 +146,74 @@ export function reorganizarPlanejamento(planejamento, dataHoje) {
   };
 }
 
+function adiantarAtividade(planejamento, dataHoje) {
+  if (!planejamento || !planejamento.aulas) return planejamento;
+
+  const hoje = new Date(dataHoje);
+  hoje.setHours(0, 0, 0, 0);
+  const hojeStr = formatDateISO(hoje);
+
+  const aulas = planejamento.aulas || [];
+  const aulasPorDisciplina = {};
+
+  aulas.forEach(aula => {
+    if (!aulasPorDisciplina[aula.disciplinaNome]) {
+      aulasPorDisciplina[aula.disciplinaNome] = [];
+    }
+    aulasPorDisciplina[aula.disciplinaNome].push(aula);
+  });
+
+  let modificado = false;
+  const novasAulas = [...aulas];
+
+  for (const [nomeDisciplina, aulasDaDisciplina] of Object.entries(aulasPorDisciplina)) {
+    const naoConcluidas = aulasDaDisciplina.filter(a => !a.concluido);
+    if (naoConcluidas.length === 0) continue;
+
+    const aulasHoje = naoConcluidas.filter(a => a.data === hojeStr);
+    if (aulasHoje.length === 0) continue;
+
+    const todasConcluidas = aulasHoje.every(a => a.concluido === true);
+    if (!todasConcluidas) continue;
+
+    const proximas = naoConcluidas
+      .filter(a => a.data > hojeStr)
+      .sort((a, b) => a.data.localeCompare(b.data));
+
+    if (proximas.length === 0) continue;
+
+    const proxima = proximas[0];
+    const index = novasAulas.findIndex(a => a.id === proxima.id);
+    if (index !== -1) {
+      const amanha = new Date(hoje);
+      amanha.setDate(amanha.getDate() + 1);
+      const amanhaStr = formatDateISO(amanha);
+      novasAulas[index] = { ...novasAulas[index], data: amanhaStr };
+      modificado = true;
+    }
+  }
+
+  if (modificado) {
+    return {
+      ...planejamento,
+      aulas: novasAulas,
+      ultimaReorganizacao: new Date().toISOString(),
+    };
+  }
+
+  return planejamento;
+}
+
 export function verificarEReorganizar(planejamento, dataHoje) {
   if (!planejamento) return planejamento;
 
   const hoje = new Date(dataHoje);
   hoje.setHours(0, 0, 0, 0);
 
-  const aulas = planejamento.aulas || [];
+  let novoPlanejamento = adiantarAtividade(planejamento, dataHoje);
+
+  const aulas = novoPlanejamento.aulas || [];
+  const eventos = novoPlanejamento.eventos || [];
 
   const temAtrasados = aulas.some(a => {
     if (a.concluido) return false;
@@ -206,13 +231,9 @@ export function verificarEReorganizar(planejamento, dataHoje) {
     return dataItem.getTime() === hoje.getTime();
   });
 
-  if (!temAtrasados && temHoje) {
-    return planejamento;
+  if (temAtrasados || !temHoje) {
+    return reorganizarPlanejamento(novoPlanejamento, dataHoje);
   }
 
-  if (!temAtrasados && !temHoje) {
-    return puxarProximoItem(planejamento, dataHoje);
-  }
-
-  return reorganizarPlanejamento(planejamento, dataHoje);
+  return novoPlanejamento;
 }
