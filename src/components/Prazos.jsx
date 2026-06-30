@@ -1,18 +1,31 @@
-import React, { useState, useMemo } from 'react';
-import Icon from './Icon.jsx';
+﻿import React, { useState, useMemo } from "react";
+import Icon from "./Icon.jsx";
+
+function hojeISO() {
+  const agora = new Date();
+  const ano = agora.getFullYear();
+  const mes = String(agora.getMonth() + 1).padStart(2, "0");
+  const dia = String(agora.getDate()).padStart(2, "0");
+  return ano + "-" + mes + "-" + dia;
+}
 
 function formatDateBR(str) {
-  if (!str) return '';
-  const [y, m, d] = str.split('-');
-  return `${d}/${m}/${y}`;
+  if (!str) return "";
+  const [y, m, d] = str.split("-");
+  return d + "/" + m + "/" + y;
 }
 
 function diasRestantes(dataStr) {
   const hoje = new Date();
-  hoje.setHours(0, 0, 0, 0);
+  const ano = hoje.getFullYear();
+  const mes = hoje.getMonth();
+  const dia = hoje.getDate();
+  const hojeMeiaNoite = new Date(ano, mes, dia);
+  hojeMeiaNoite.setHours(0, 0, 0, 0);
   const alvo = new Date(dataStr);
   alvo.setHours(0, 0, 0, 0);
-  return Math.ceil((alvo - hoje) / (1000 * 60 * 60 * 24));
+  const diff = Math.ceil((alvo - hojeMeiaNoite) / (1000 * 60 * 60 * 24));
+  return diff;
 }
 
 function getDisciplina(disciplinas, nome) {
@@ -21,16 +34,16 @@ function getDisciplina(disciplinas, nome) {
 }
 
 function tipoEventoLabel(tipo) {
-  const map = { prova: 'Prova', trabalho: 'Trabalho', seminario: 'Seminário', ace: 'ACE' };
+  const map = { prova: "Prova", trabalho: "Trabalho", seminario: "Seminário", ace: "ACE" };
   return map[tipo] || tipo;
 }
 
 export default function Prazos({ planejamento, concluirEvento, reabrirEvento, mostrarNotificacao }) {
   const { eventos = [], disciplinas = [] } = planejamento || {};
 
-  const [filtroDisciplina, setFiltroDisciplina] = useState('');
-  const [filtroTipo, setFiltroTipo] = useState('');
-  const [filtroStatus, setFiltroStatus] = useState('pendente');
+  const [filtroDisciplina, setFiltroDisciplina] = useState("");
+  const [filtroTipo, setFiltroTipo] = useState("");
+  const [filtroStatus, setFiltroStatus] = useState("pendente");
   const [confirmando, setConfirmando] = useState(null);
 
   const eventosFiltrados = useMemo(() => {
@@ -38,8 +51,8 @@ export default function Prazos({ planejamento, concluirEvento, reabrirEvento, mo
       .filter(e => !filtroDisciplina || e.disciplinaNome === filtroDisciplina)
       .filter(e => !filtroTipo || e.tipo === filtroTipo)
       .filter(e => {
-        if (filtroStatus === 'pendente') return !e.concluido;
-        if (filtroStatus === 'concluido') return e.concluido;
+        if (filtroStatus === "pendente") return !e.concluido;
+        if (filtroStatus === "concluido") return e.concluido;
         return true;
       })
       .sort((a, b) => a.data.localeCompare(b.data));
@@ -53,17 +66,17 @@ export default function Prazos({ planejamento, concluirEvento, reabrirEvento, mo
     if (confirmando) {
       concluirEvento(confirmando.id);
       setConfirmando(null);
-      mostrarNotificacao(`✅ "${confirmando.titulo}" concluído!`);
+      mostrarNotificacao("\"" + confirmando.titulo + "\" concluído!");
     }
   }
 
   function handleReabrir(id) {
     reabrirEvento(id);
-    mostrarNotificacao('🔄 Evento reaberto!');
+    mostrarNotificacao("Evento reaberto!");
   }
 
-  const tipos = ['prova', 'trabalho', 'seminario'];
-  const status = ['pendente', 'concluido'];
+  const tipos = ["prova", "trabalho", "seminario"];
+  const status = ["pendente", "concluido"];
 
   return (
     <div className="aba-container">
@@ -102,32 +115,33 @@ export default function Prazos({ planejamento, concluirEvento, reabrirEvento, mo
               const restam = diasRestantes(ev.data);
               const urgente = !ev.concluido && restam <= 3 && restam >= 0;
               const atrasado = !ev.concluido && restam < 0;
+              const hoje = restam === 0;
               return (
-                <tr key={ev.id} className={ev.concluido ? 'concluido-row' : urgente ? 'urgente-row' : ''}>
+                <tr key={ev.id} className={ev.concluido ? "concluido-row" : urgente ? "urgente-row" : ""}>
                   <td>
-                    <span className="disc-badge" style={{ background: (disc?.cor || '#00B4FF') + '22', color: disc?.cor || '#00B4FF', border: `1px solid ${disc?.cor || '#00B4FF'}` }}>
-                      <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: disc?.cor || '#00B4FF', marginRight: 6 }} />
+                    <span className="disc-badge" style={{ background: (disc?.cor || "#00B4FF") + "22", color: disc?.cor || "#00B4FF", border: "1px solid " + (disc?.cor || "#00B4FF") }}>
+                      <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: disc?.cor || "#00B4FF", marginRight: 6 }} />
                       {disc?.nome || ev.disciplinaNome}
                     </span>
                   </td>
                   <td className="ev-titulo">{ev.titulo}</td>
-                  <td><span className={`tipo-tag tipo-${ev.tipo}`}>{tipoEventoLabel(ev.tipo)}</span></td>
+                  <td><span className={"tipo-tag tipo-" + ev.tipo}>{tipoEventoLabel(ev.tipo)}</span></td>
                   <td>{formatDateBR(ev.data)}</td>
                   <td>
                     {ev.concluido ? (
                       <span className="tag-concluido"><Icon name="CheckCircle" size={14} /> Concluído</span>
                     ) : atrasado ? (
                       <span className="tag-atrasado"><Icon name="AlertCircle" size={14} /> Atrasado</span>
-                    ) : restam === 0 ? (
+                    ) : hoje ? (
                       <span className="tag-urgente"><Icon name="AlertTriangle" size={14} /> Hoje!</span>
                     ) : (
-                      <span style={{ color: urgente ? '#FFB347' : '#7FA8C4' }}>{restam} dia{restam !== 1 ? 's' : ''}</span>
+                      <span style={{ color: urgente ? "#FFB347" : "#7FA8C4" }}>{restam} dia{restam !== 1 ? "s" : ""}</span>
                     )}
                   </td>
                   <td>
-                    <span className={`status-dot ${ev.concluido ? 'done' : 'pending'}`}>
-                      <Icon name={ev.concluido ? 'CheckCircle' : 'Circle'} size={14} color={ev.concluido ? '#00D4AA' : '#7FA8C4'} />
-                      {ev.concluido ? 'Concluído' : 'Pendente'}
+                    <span className={"status-dot " + (ev.concluido ? "done" : "pending")}>
+                      <Icon name={ev.concluido ? "CheckCircle" : "Circle"} size={14} color={ev.concluido ? "#00D4AA" : "#7FA8C4"} />
+                      {ev.concluido ? "Concluído" : "Pendente"}
                     </span>
                   </td>
                   <td>
