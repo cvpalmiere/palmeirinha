@@ -1,16 +1,12 @@
-// ============================================================
-// PALMEIRINHA – Gerenciamento de Planejamentos
-// ============================================================
-
-import { useState, useEffect, useCallback } from 'react';
-import { useLocalStorage } from './useLocalStorage.js';
-import { PLANEJAMENTO_VAZIO } from './dados.js';
-import { parsePrompt } from './parser.js';
-import { verificarEReorganizar } from './inteligencia.js';
+﻿import { useState, useEffect, useCallback } from "react";
+import { useLocalStorage } from "./useLocalStorage.js";
+import { PLANEJAMENTO_VAZIO } from "./dados.js";
+import { parsePrompt } from "./parser.js";
+import { verificarEReorganizar, forcarReorganizacao } from "./inteligencia.js";
 
 export function usePlanejamento() {
-  const [planejamento, setPlanejamento] = useLocalStorage('palmeirinha_planejamento', null);
-  const [historico, setHistorico] = useLocalStorage('palmeirinha_historico', []);
+  const [planejamento, setPlanejamento] = useLocalStorage("palmeirinha_planejamento", null);
+  const [historico, setHistorico] = useLocalStorage("palmeirinha_historico", []);
   const [loading, setLoading] = useState(false);
   const [notificacao, setNotificacao] = useState(null);
 
@@ -24,13 +20,13 @@ export function usePlanejamento() {
     try {
       const novo = parsePrompt(textoPrompt);
       if (!novo.atividades || novo.atividades.length === 0) {
-        throw new Error('Nenhuma atividade encontrada no prompt.');
+        throw new Error("Nenhuma atividade encontrada no prompt.");
       }
       setPlanejamento(novo);
-      mostrarNotificacao('✅ Planejamento criado com sucesso!');
+      mostrarNotificacao("Planejamento criado com sucesso!");
       return novo;
     } catch (error) {
-      mostrarNotificacao(`❌ Erro ao criar planejamento: ${error.message}`);
+      mostrarNotificacao("Erro: " + error.message);
       throw error;
     } finally {
       setLoading(false);
@@ -39,15 +35,15 @@ export function usePlanejamento() {
 
   const arquivarAtual = useCallback(() => {
     if (!planejamento) {
-      mostrarNotificacao('❌ Nenhum planejamento ativo para arquivar.');
+      mostrarNotificacao("Nenhum planejamento ativo para arquivar.");
       return null;
     }
 
     const itemHistorico = {
-      id: planejamento.id || `hist_${Date.now()}`,
-      nome: planejamento.nome || 'Planejamento',
-      tipo: planejamento.tipo || 'semestre',
-      periodo: planejamento.periodo || { inicio: '', fim: '' },
+      id: planejamento.id || "hist_" + Date.now(),
+      nome: planejamento.nome || "Planejamento",
+      tipo: planejamento.tipo || "semestre",
+      periodo: planejamento.periodo || { inicio: "", fim: "" },
       stats: {
         totalDias: planejamento.stats?.totalDias || 0,
         diasEstudados: planejamento.stats?.diasEstudados || 0,
@@ -62,89 +58,81 @@ export function usePlanejamento() {
 
     setHistorico(prev => [itemHistorico, ...prev]);
     setPlanejamento(null);
-    mostrarNotificacao(`📦 "${itemHistorico.nome}" arquivado com sucesso!`);
+    mostrarNotificacao("\"" + itemHistorico.nome + "\" arquivado com sucesso!");
     return itemHistorico;
   }, [planejamento, setHistorico, setPlanejamento, mostrarNotificacao]);
 
   const resetarAtual = useCallback(() => {
     if (!planejamento) {
-      mostrarNotificacao('❌ Nenhum planejamento ativo para resetar.');
+      mostrarNotificacao("Nenhum planejamento ativo para resetar.");
       return;
     }
     setPlanejamento(null);
-    mostrarNotificacao('🔄 Planejamento resetado com sucesso!');
+    mostrarNotificacao("Planejamento resetado com sucesso!");
   }, [planejamento, setPlanejamento, mostrarNotificacao]);
+
+  const hojeISO = () => {
+    const agora = new Date();
+    const ano = agora.getFullYear();
+    const mes = String(agora.getMonth() + 1).padStart(2, "0");
+    const dia = String(agora.getDate()).padStart(2, "0");
+    return ano + "-" + mes + "-" + dia;
+  };
+
+  const aplicarEReorganizar = useCallback((mutador, msgSucesso) => {
+    let mudou = false;
+
+    setPlanejamento(prev => {
+      if (!prev) return prev;
+      const mutado = mutador(prev);
+      const reorganizado = verificarEReorganizar(mutado, hojeISO());
+      mudou = reorganizado !== mutado || reorganizado !== prev;
+      return reorganizado;
+    });
+
+    if (msgSucesso) {
+      mostrarNotificacao(mudou ? msgSucesso + " Plano reorganizado!" : msgSucesso);
+    }
+  }, [setPlanejamento, mostrarNotificacao]);
 
   const concluirEvento = useCallback((eventoId) => {
     if (!planejamento) return;
-
-    setPlanejamento(prev => {
-      const novo = { ...prev };
-      const evento = novo.eventos.find(e => e.id === eventoId);
-      if (!evento) return prev;
-      evento.concluido = true;
-      return novo;
-    });
-
-    mostrarNotificacao('✅ Evento concluído com sucesso!');
-
-    setTimeout(() => {
-      const hoje = new Date().toISOString().split('T')[0];
-      reorganizar(hoje);
-    }, 300);
-  }, [planejamento, setPlanejamento, mostrarNotificacao]);
+    aplicarEReorganizar(prev => ({
+      ...prev,
+      eventos: prev.eventos.map(e => e.id === eventoId ? { ...e, concluido: true } : e),
+    }), "Evento concluído!");
+  }, [planejamento, aplicarEReorganizar]);
 
   const reabrirEvento = useCallback((eventoId) => {
     if (!planejamento) return;
-
-    setPlanejamento(prev => {
-      const novo = { ...prev };
-      const evento = novo.eventos.find(e => e.id === eventoId);
-      if (!evento) return prev;
-      evento.concluido = false;
-      return novo;
-    });
-
-    mostrarNotificacao('🔄 Evento reaberto!');
-
-    setTimeout(() => {
-      const hoje = new Date().toISOString().split('T')[0];
-      reorganizar(hoje);
-    }, 300);
-  }, [planejamento, setPlanejamento, mostrarNotificacao]);
+    aplicarEReorganizar(prev => ({
+      ...prev,
+      eventos: prev.eventos.map(e => e.id === eventoId ? { ...e, concluido: false } : e),
+    }), "Evento reaberto!");
+  }, [planejamento, aplicarEReorganizar]);
 
   const marcarAulaAssistida = useCallback((aulaId, concluido) => {
     if (!planejamento) return;
-
-    setPlanejamento(prev => {
-      const novo = { ...prev };
-      novo.progresso.aulasAssistidas = {
-        ...novo.progresso.aulasAssistidas,
-        [aulaId]: concluido,
-      };
-      return novo;
-    });
-
-    if (concluido) {
-      setTimeout(() => {
-        const hoje = new Date().toISOString().split('T')[0];
-        reorganizar(hoje);
-      }, 300);
-    }
-  }, [planejamento, setPlanejamento]);
+    aplicarEReorganizar(prev => ({
+      ...prev,
+      progresso: {
+        ...prev.progresso,
+        aulasAssistidas: { ...prev.progresso.aulasAssistidas, [aulaId]: concluido },
+      },
+      aulas: prev.aulas.map(a => a.id === aulaId ? { ...a, concluido } : a),
+    }), concluido ? "Aula marcada como assistida!" : null);
+  }, [planejamento, aplicarEReorganizar]);
 
   const marcarEstudoConcluido = useCallback((dateStr, concluido) => {
     if (!planejamento) return;
-
-    setPlanejamento(prev => {
-      const novo = { ...prev };
-      novo.progresso.estudosConcluidos = {
-        ...novo.progresso.estudosConcluidos,
-        [dateStr]: concluido,
-      };
-      return novo;
-    });
-  }, [planejamento, setPlanejamento]);
+    aplicarEReorganizar(prev => ({
+      ...prev,
+      progresso: {
+        ...prev.progresso,
+        estudosConcluidos: { ...prev.progresso.estudosConcluidos, [dateStr]: concluido },
+      },
+    }), null);
+  }, [planejamento, aplicarEReorganizar]);
 
   const editarManha = useCallback((dateStr, conteudo) => {
     if (!planejamento) return;
@@ -161,30 +149,56 @@ export function usePlanejamento() {
 
   const removerDoHistorico = useCallback((id) => {
     setHistorico(prev => prev.filter(item => item.id !== id));
-    mostrarNotificacao('🗑️ Item removido do histórico.');
+    mostrarNotificacao("Item removido do histórico.");
   }, [setHistorico, mostrarNotificacao]);
 
   const reorganizar = useCallback((dataHoje) => {
     if (!planejamento) {
-      mostrarNotificacao('❌ Nenhum planejamento para reorganizar.');
+      mostrarNotificacao("Nenhum planejamento para reorganizar.");
       return null;
     }
 
-    const data = dataHoje || new Date().toISOString().split('T')[0];
-    const novo = verificarEReorganizar(planejamento, data);
+    let resultado = null;
+    let mudou = false;
 
-    if (novo !== planejamento) {
-      setPlanejamento(novo);
-      mostrarNotificacao('🔄 Plano reorganizado automaticamente!');
+    setPlanejamento(prev => {
+      if (!prev) return prev;
+      const data = dataHoje || hojeISO();
+      const novo = verificarEReorganizar(prev, data);
+      mudou = novo !== prev;
+      resultado = novo;
       return novo;
+    });
+
+    mostrarNotificacao(mudou ? "Plano reorganizado!" : "Plano já está organizado.");
+    return resultado;
+  }, [planejamento, setPlanejamento, mostrarNotificacao]);
+
+  const forcarReorganizar = useCallback((dataHoje) => {
+    if (!planejamento) {
+      mostrarNotificacao("Nenhum planejamento para reorganizar.");
+      return null;
     }
 
-    return planejamento;
+    let resultado = null;
+    let mudou = false;
+
+    setPlanejamento(prev => {
+      if (!prev) return prev;
+      const data = dataHoje || hojeISO();
+      const novo = forcarReorganizacao(prev, data);
+      mudou = novo !== prev;
+      resultado = novo;
+      return novo;
+    });
+
+    mostrarNotificacao(mudou ? "Plano reorganizado!" : "Plano já está organizado.");
+    return resultado;
   }, [planejamento, setPlanejamento, mostrarNotificacao]);
 
   const exportarDados = useCallback(() => {
     if (!planejamento) {
-      mostrarNotificacao('❌ Nenhum planejamento para exportar.');
+      mostrarNotificacao("Nenhum planejamento para exportar.");
       return null;
     }
 
@@ -192,42 +206,42 @@ export function usePlanejamento() {
       planejamento,
       historico,
       dataExportacao: new Date().toISOString(),
-      versao: '2.0',
+      versao: "2.0",
     };
 
-    const blob = new Blob([JSON.stringify(dados, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(dados, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = `palmeirinha_${planejamento.nome || 'backup'}_${Date.now()}.json`;
+    a.download = "palmeirinha_" + (planejamento.nome || "backup") + "_" + Date.now() + ".json";
     a.click();
     URL.revokeObjectURL(url);
 
-    mostrarNotificacao('📤 Dados exportados com sucesso!');
+    mostrarNotificacao("Dados exportados com sucesso!");
     return dados;
   }, [planejamento, historico, mostrarNotificacao]);
 
   const importarDados = useCallback((dadosJSON) => {
     try {
-      const dados = typeof dadosJSON === 'string' ? JSON.parse(dadosJSON) : dadosJSON;
+      const dados = typeof dadosJSON === "string" ? JSON.parse(dadosJSON) : dadosJSON;
       if (!dados.planejamento) {
-        throw new Error('Arquivo inválido: não contém planejamento.');
+        throw new Error("Arquivo inválido: não contém planejamento.");
       }
       setPlanejamento(dados.planejamento);
       if (dados.historico) {
         setHistorico(dados.historico);
       }
-      mostrarNotificacao('📥 Dados importados com sucesso!');
+      mostrarNotificacao("Dados importados com sucesso!");
       return dados;
     } catch (error) {
-      mostrarNotificacao(`❌ Erro ao importar: ${error.message}`);
+      mostrarNotificacao("Erro ao importar: " + error.message);
       throw error;
     }
   }, [setPlanejamento, setHistorico, mostrarNotificacao]);
 
   const temPlanejamento = !!planejamento;
-  const isFerias = planejamento?.tipo === 'ferias';
-  const isSemestre = planejamento?.tipo === 'semestre';
+  const isFerias = planejamento?.tipo === "ferias";
+  const isSemestre = planejamento?.tipo === "semestre";
 
   return {
     planejamento,
@@ -247,6 +261,7 @@ export function usePlanejamento() {
     editarManha,
     removerDoHistorico,
     reorganizar,
+    forcarReorganizar,
     exportarDados,
     importarDados,
     mostrarNotificacao,

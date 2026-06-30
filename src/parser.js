@@ -252,21 +252,21 @@ export function parsePrompt(texto) {
     }
 
     if (linha.includes('=== PERÍODO ===') || linha.includes('PERÍODO')) {
-      for (let j = i + 1; j < linhas.length; j++) {
-        const l = linhas[j];
-        if (l.includes('===')) break;
-        if (l.includes('Início:')) {
-          const dataRaw = l.replace('Início:', '').trim();
-          resultado.periodo.inicio = converterDataBRparaISO(dataRaw);
-        }
-        if (l.includes('Fim:')) {
-          const dataRaw = l.replace('Fim:', '').trim();
-          resultado.periodo.fim = converterDataBRparaISO(dataRaw);
-        }
-        i = j;
-      }
-      continue;
+  for (let j = i + 1; j < linhas.length; j++) {
+    const l = linhas[j];
+    if (l.includes('===')) break;
+    if (l.includes('Início:')) {
+      const dataRaw = l.replace('Início:', '').trim();
+      resultado.periodo.inicio = converterDataBRparaISO(dataRaw);
     }
+    if (l.includes('Fim:')) {
+      const dataRaw = l.replace('Fim:', '').trim();
+      resultado.periodo.fim = converterDataBRparaISO(dataRaw);
+    }
+    i = j;
+  }
+  continue;
+}
 
     if (linha.includes('=== HORÁRIOS ===') || linha.includes('HORÁRIOS')) {
       for (let j = i + 1; j < linhas.length; j++) {

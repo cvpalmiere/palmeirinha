@@ -15,7 +15,10 @@ function formatDateISO(date) {
 }
 
 function hojeISO() {
-  return formatDateISO(new Date());
+  const agora = new Date();
+  const offset = agora.getTimezoneOffset() * 60000;
+  const local = new Date(agora.getTime() - offset);
+  return formatDateISO(local);
 }
 
 function parseDate(str) {
@@ -75,17 +78,23 @@ function gerarBlocoManha(dateStr, eventos, disciplinas, edicoes = {}, isFerias =
     return { tipo: 'trabalho', conteudo: `Preparação para ${ev.titulo} – ${disc?.nome || ev.disciplinaNome}` };
   }
 
+  const aula = eventos.find(a => a.data === dateStr && !a.concluido);
+  if (aula) {
+    const disc = getDisciplina(disciplinas, aula.disciplinaNome);
+    return { tipo: 'pre_aula', conteudo: `Pré-aula ${disc?.nome || aula.disciplinaNome}: ${aula.conteudo}` };
+  }
+
   return { tipo: 'livre', conteudo: 'Estudo livre ou revisão' };
 }
 
 export default function PlanosEstudo({ planejamento, editarManha }) {
-  const { eventos = [], aulas = [], disciplinas = [], progresso = {}, isFerias = false, atividades = [], config = {} } = planejamento || {};
+  const { eventos = [], aulas = [], disciplinas = [], progresso = {}, isFerias = false, atividades = [], periodo } = planejamento || {};
   const { edicoesManha = {} } = progresso || {};
 
   const semanas = useMemo(() => {
     const semanasArray = [];
-    const inicio = config?.periodo?.inicio ? parseDate(config.periodo.inicio) : new Date();
-    const fim = config?.periodo?.fim ? parseDate(config.periodo.fim) : new Date();
+    const inicio = periodo?.inicio ? parseDate(periodo.inicio) : new Date();
+    const fim = periodo?.fim ? parseDate(periodo.fim) : new Date();
     const cur = new Date(inicio);
     const dow = cur.getDay();
     const diff = dow === 0 ? -6 : 1 - dow;
@@ -95,7 +104,7 @@ export default function PlanosEstudo({ planejamento, editarManha }) {
       cur.setDate(cur.getDate() + 7);
     }
     return semanasArray.length > 0 ? semanasArray : [formatDateISO(new Date())];
-  }, [config]);
+  }, [periodo]);
 
   const [semanaSelecionada, setSemanaSelecionada] = useState(() => {
     const hoje = hojeISO();
@@ -154,7 +163,7 @@ export default function PlanosEstudo({ planejamento, editarManha }) {
     <div className="aba-container">
       <div className="aba-header">
         <h1 className="aba-titulo"><Icon name="GraduationCap" size={28} color="#00B4FF" style={{ marginRight: 10 }} /> Planos de Estudo</h1>
-        <p className="aba-sub">{isFerias ? '🏖️ Plano de estudos para suas férias' : 'Plano gerado automaticamente com base nos prazos'}</p>
+        <p className="aba-sub">{isFerias ? 'Plano de estudos para suas férias' : 'Plano gerado automaticamente com base nos prazos'}</p>
       </div>
 
       <div className="plano-controles">
@@ -177,7 +186,7 @@ export default function PlanosEstudo({ planejamento, editarManha }) {
 
               <div className="plano-bloco" style={{ borderLeft: `3px solid ${corBloco(dia.manha.tipo)}` }}>
                 <div className="plano-bloco-header">
-                  <span className="plano-bloco-label"><Icon name="Sun" size={12} /> {isFerias ? '🏖️ Manhã' : 'Manhã (2h)'}</span>
+                  <span className="plano-bloco-label"><Icon name="Sun" size={12} /> {isFerias ? 'Manhã' : 'Manhã (2h)'}</span>
                   <span className="plano-tipo" style={{ color: corBloco(dia.manha.tipo) }}>{tipoLabel(dia.manha.tipo)}</span>
                 </div>
                 <p className="plano-conteudo">{dia.manha.conteudo}</p>
@@ -185,7 +194,7 @@ export default function PlanosEstudo({ planejamento, editarManha }) {
 
               {dia.aula ? (
                 <div className="plano-bloco" style={{ borderLeft: `3px solid ${dia.disciplina?.cor || '#00B4FF'}` }}>
-                  <span className="plano-bloco-label"><Icon name="BookOpen" size={12} /> {isFerias ? '🏖️ Tarde' : 'Tarde (14h)'}</span>
+                  <span className="plano-bloco-label"><Icon name="BookOpen" size={12} /> {isFerias ? 'Tarde' : 'Tarde (14h)'}</span>
                   <p className="plano-conteudo"><strong>{dia.disciplina?.nome || dia.aula.disciplinaNome}</strong> – {dia.aula.tema}</p>
                 </div>
               ) : (
